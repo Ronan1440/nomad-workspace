@@ -1,4 +1,5 @@
 import os
+import time
 from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph, END
 from agents import run_researcher_agent, run_wifi_analyst_agent, run_scorer_agent, run_writer_agent
@@ -20,9 +21,13 @@ class AgentState(TypedDict):
     next_step: str
 
 def supervisor_agent(state: AgentState):
-    if not state.get("research_data"): return {"next_step": "researcher"}
-    if not state.get("wifi_data"): return {"next_step": "wifi_analyst"}
-    if not state.get("ranked_results"): return {"next_step": "scorer"}
+    # Safe checks: only route to a node if the key is completely missing/uninitialized (None)
+    if state.get("research_data") is None: 
+        return {"next_step": "researcher"}
+    if state.get("wifi_data") is None: 
+        return {"next_step": "wifi_analyst"}
+    if state.get("ranked_results") is None: 
+        return {"next_step": "scorer"}
     return {"next_step": "writer"}
 
 def research_agent(state: AgentState):
@@ -30,12 +35,19 @@ def research_agent(state: AgentState):
     Find public-access third places for remote work located in {state['city']} {state['postcode']} {state['country']} 
     strictly within a {state['radius_miles']} mile radius of coordinates ({state['target_lat']}, {state['target_lon']}).
     """
-    results = run_researcher_agent(geo_context) or []
+    results = run_researcher_agent(geo_context)
+    # If the tool fails or hits a soft limit, set it to an empty list so it isn't None anymore
+    if results is None:
+        results = []
+    time.sleep(1)
     return {"research_data": results}
 
 def wifi_analyst_agent(state: AgentState):
     location_query = f"{state['city']}, {state['country']} region centered near ({state['target_lat']}, {state['target_lon']})"
-    results = run_wifi_analyst_agent(location_query, str(state["research_data"])) or {}
+    results = run_wifi_analyst_agent(location_query, str(state["research_data"]))
+    if results is None:
+        results = {}
+    time.sleep(1)
     return {"wifi_data": results}
 
 def scorer_agent(state: AgentState):
@@ -47,7 +59,9 @@ def scorer_agent(state: AgentState):
         "max_radius": state["radius_miles"],
         "quality_metrics": ["seat_to_plug_ratio", "ambient_noise_suitability", "stay_protocol_lenency"]
     }
-    results = run_scorer_agent(sorting_weights, str(state["research_data"]), str(state["wifi_data"])) or []
+    results = run_scorer_agent(sorting_weights, str(state["research_data"]), str(state["wifi_data"]))
+    if results is None:
+        results = []
     
     base_lat = state["target_lat"]
     base_lon = state["target_lon"]
@@ -56,7 +70,7 @@ def scorer_agent(state: AgentState):
         {"lat": base_lat - 0.0020, "lon": base_lon + 0.0031},
         {"lat": base_lat + 0.0035, "lon": base_lon + 0.0012}
     ]
-    
+    time.sleep(1)
     return {"ranked_results": results, "map_coordinates": extracted_pins}
 
 def report_writer_agent(state: AgentState):
