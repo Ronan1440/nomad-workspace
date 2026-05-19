@@ -26,28 +26,19 @@ def supervisor_agent(state: AgentState):
     return {"next_step": "writer"}
 
 def research_agent(state: AgentState):
-    # Formulating the explicit "Third Place" framework instructions for the LLM researcher
     geo_context = f"""
     Find public-access third places for remote work located in {state['city']} {state['postcode']} {state['country']} 
     strictly within a {state['radius_miles']} mile radius of coordinates ({state['target_lat']}, {state['target_lon']}).
-    
-    CRITICAL CRITERIA FOR DISCOVERY:
-    1. TARGET ONLY: Laptop-friendly work cafes, public/academic libraries with open visitor seating, 
-       hybrid bookshop cafes, and accessible design-hotel lobbies open to non-guests.
-    2. STRICTLY DISQUALIFY: Private offices, gated coworking spaces requiring memberships/day-passes (e.g., WeWork, Regus), 
-       high-turnover fast-food/brunch eateries, or loud bars.
-    3. IGNORE cross-country or out-of-bounds geographic matches completely.
     """
-    results = run_researcher_agent(geo_context)
+    results = run_researcher_agent(geo_context) or []
     return {"research_data": results}
 
 def wifi_analyst_agent(state: AgentState):
     location_query = f"{state['city']}, {state['country']} region centered near ({state['target_lat']}, {state['target_lon']})"
-    results = run_wifi_analyst_agent(location_query, str(state["research_data"]))
+    results = run_wifi_analyst_agent(location_query, str(state["research_data"])) or {}
     return {"wifi_data": results}
 
 def scorer_agent(state: AgentState):
-    # Pass structural scoring instructions focused on seats, plugs, noise, and stay protocol
     sorting_weights = {
         "user_preferences": state["preferences"],
         "ranking_rule": "closeness_and_quality",
@@ -56,9 +47,8 @@ def scorer_agent(state: AgentState):
         "max_radius": state["radius_miles"],
         "quality_metrics": ["seat_to_plug_ratio", "ambient_noise_suitability", "stay_protocol_lenency"]
     }
-    results = run_scorer_agent(sorting_weights, str(state["research_data"]), str(state["wifi_data"]))
+    results = run_scorer_agent(sorting_weights, str(state["research_data"]), str(state["wifi_data"])) or []
     
-    # Extract map pins from the center anchor point
     base_lat = state["target_lat"]
     base_lon = state["target_lon"]
     extracted_pins = [
@@ -71,17 +61,7 @@ def scorer_agent(state: AgentState):
 
 def report_writer_agent(state: AgentState):
     location_title = f"{state['city'].upper()}, {state['country'].upper()} ({state['radius_miles']} Mile Radius Lock)"
-    
-    # Instruct the writer to output the report tailored to a working professional's day
-    prompt_override = """
-    Structure the final dossier using these clear sections for each venue:
-    - [Venue Name & Category]
-    - Proximity & Accessibility
-    - Seat-to-Plug Ratio & Infrastructure
-    - Ambient Noise Level & Call Suitability
-    - Stay Protocol (Unspoken rules/expectations for remote workers)
-    """
-    
+    prompt_override = "Structure the final dossier using clear sections for each venue."
     report = run_writer_agent(location_title + " - " + prompt_override, str(state["ranked_results"]), str(state["wifi_data"]))
     return {"final_report": report}
 
@@ -92,10 +72,8 @@ builder.add_node("researcher", research_agent)
 builder.add_node("wifi_analyst", wifi_analyst_agent)
 builder.add_node("scorer", scorer_agent)
 builder.add_node("writer", report_writer_agent)
-
 builder.set_entry_point("supervisor")
 
-# Safe state evaluation with an automated fallback route
 def router(state: AgentState): 
     return state.get("next_step", "researcher")
 
