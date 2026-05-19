@@ -92,10 +92,23 @@ builder.add_node("researcher", research_agent)
 builder.add_node("wifi_analyst", wifi_analyst_agent)
 builder.add_node("scorer", scorer_agent)
 builder.add_node("writer", report_writer_agent)
+
 builder.set_entry_point("supervisor")
 
-def router(state: AgentState): return state["next_step"]
-builder.add_conditional_edges("supervisor", router, {"researcher": "researcher", "wifi_analyst": "wifi_analyst", "scorer": "scorer", "writer": "writer"})
+# Safe state evaluation with an automated fallback route
+def router(state: AgentState): 
+    return state.get("next_step", "researcher")
+
+builder.add_conditional_edges(
+    "supervisor", 
+    router, 
+    {
+        "researcher": "researcher", 
+        "wifi_analyst": "wifi_analyst", 
+        "scorer": "scorer", 
+        "writer": "writer"
+    }
+)
 builder.add_edge("researcher", "supervisor")
 builder.add_edge("wifi_analyst", "supervisor")
 builder.add_edge("scorer", "supervisor")
