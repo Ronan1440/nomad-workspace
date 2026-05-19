@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from langchain_tavily import TavilySearch
+from tavily import TavilyClient
 from langchain_core.tools import tool
 
 # Load environment variables (API keys)
