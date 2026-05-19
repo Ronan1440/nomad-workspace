@@ -1,0 +1,9 @@
+streamlit>=1.30.0
+pandas
+geopy
+langgraph>=0.0.10
+langchain-core>=0.1.0
+langchain-community>=0.0.10
+langchain-openai
+tavily-python
+python-dotenv>=1.0.0
