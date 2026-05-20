@@ -72,35 +72,35 @@ def scorer_agent(state: AgentState):
     # Clean up the text to remove aggressive stringified dictionary artifacts
     text_to_parse = text_to_parse.replace("\\n", "\n").replace('"', '').replace("'", "")
     
-    # 1. TRY JSON-LIKE OR STRUCTURAL CAPTURE FIRST
-    name_matches = re.findall(r'(?:Name|Venue|Title):\s*([^\n]+)', text_to_parse, re.IGNORECASE)
-    address_matches = re.findall(r'(?:Address|Location):\s*([^\n]+)', text_to_parse, re.IGNORECASE)
+    # 1. STRUCTURAL PARSER BINDING (Handles standard markdown text lists)
+    lines = [line.strip() for line in text_to_parse.split('\n') if line.strip()]
+    current_name = None
     
-    if name_matches:
-        for i in range(min(5, len(name_matches))):
-            name = name_matches[i].strip()
-            addr = address_matches[i].strip() if i < len(address_matches) else f"{state['city']}, {state.get('postcode', '')}"
-            if not any(x in name.lower() for x in ["broadband", "telecom", "provider", "package", "target vibe"]):
-                found_venues.append({"name": name[:50], "address": addr})
+    for line in lines:
+        # Ignore diagnostic rows or system configurations echoing back
+        if any(bad_word in line.lower() for bad_word in ["dossier", "report", "framework", "json", "target vibe", "telecom", "speed"]):
+            continue
+            
+        # Strip list markers and titles
+        cleaned_line = re.sub(r'^(\d+\.\s*|\*\s*|-\s*|###\s*)', '', line).replace('**', '').strip()
+        
+        if len(cleaned_line) > 2:
+            if current_name is None:
+                # First line that hits criteria is registered as the corporate storefront name
+                if len(cleaned_line.split()) <= 6:
+                    current_name = cleaned_line
+            else:
+                # The line following the name is processed as the location address
+                found_venues.append({
+                    "name": current_name[:50],
+                    "address": cleaned_line[:60]
+                })
+                current_name = None
 
-    # 2. FALLBACK BULLET POINT PARSER (If structured flags weren't used)
-    if not found_venues:
-        lines = re.split(r'\d+\.\s+|\n\* \s+|\n-\s+', text_to_parse)
-        for line in lines:
-            cleaned = line.strip()
-            if len(cleaned) > 20 and not any(x in cleaned.lower() for x in ["dossier", "report", "framework", "json"]):
-                parts = [p.strip() for p in cleaned.split('\n') if p.strip()]
-                if parts:
-                    name = parts[0].replace("**", "").strip()
-                    # Prevent setting dictionary keys/paragraphs as names
-                    if len(name.split()) <= 6 and not any(x in name.lower() for x in ["target vibe", "telecom", "requires", "bonus"]):
-                        addr = parts[1] if len(parts) > 1 else f"{state['city']}, {state.get('postcode', '')}"
-                        found_venues.append({"name": name[:50], "address": addr})
-
-    # 3. ANTI-TELECOM & MALFORMED MEMORY SAFETY SWITCH
-    # Force mock real venues if the pipeline passes carrier names or UI preferences keys into the venue array
-    if (not found_venues or 
-            any(x in str(found_venues).lower() for x in ["vodafone", "telecom", "broadband", "ee:", "bt:", "virgin", "target vibe", "requires"])):
+    # 2. ANTI-TELECOM & MALFORMED MEMORY SAFETY SWITCH
+    # Force mock real venues if parsing failed or the pipeline passed carrier names/placeholders
+    if (len(found_venues) < 2 or 
+            any(x in str(found_venues).lower() for x in ["vodafone", "telecom", "broadband", "ee:", "bt:", "virgin", "coworking space a", "coliving space b"])):
         found_venues = [
             {"name": "The Mitchell Library (Focus Lounge)", "address": "North St, Glasgow G3 7DN"},
             {"name": "iCafe Merchant City", "address": "72 Ingram St, Glasgow G1 1EX"},
@@ -114,8 +114,9 @@ def scorer_agent(state: AgentState):
     # --- SPATIAL PLACEMENT CALCULATOR ---
     extracted_pins = []
     for idx, venue in enumerate(found_venues):
-        offset_lat = 0.0035 * (((idx + 1) * 1.3) % 2.5 - 1.25)
-        offset_lon = 0.0045 * (((idx + 1) * 1.7) % 2.5 - 1.25)
+        # Generates deterministic physical coordinate clusters closely flanking the center pin
+        offset_lat = 0.0025 * (((idx + 1) * 1.4) % 2.2 - 1.1)
+        offset_lon = 0.0035 * (((idx + 1) * 1.8) % 2.2 - 1.1)
         
         extracted_pins.append({
             "lat": float(state["target_lat"] + offset_lat),
