@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import pandas as pd
+import pydeck as pdk
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
 from graph import nomad_scout_graph
@@ -219,8 +220,8 @@ if st.button("RUN SCOUT AGENTS"):
                     map_data.append({
                         "lat": target_lat,
                         "lon": target_lon,
-                        "name": "SEARCH CENTER MIDPOINT",
-                        "color": "#00f0ff"
+                        "name": "🎯 SEARCH CENTER MIDPOINT",
+                        "color_r": 0, "color_g": 240, "color_b": 255
                     })
                     
                     # 2. Add individual workspace locations
@@ -232,7 +233,7 @@ if st.button("RUN SCOUT AGENTS"):
                             "lat": venue["lat"],
                             "lon": venue["lon"],
                             "name": f"📌 {v_name}",
-                            "color": "#a855f7"
+                            "color_r": 168, "color_g": 85, "color_b": 247
                         })
                         
                         directory_data.append({
@@ -243,8 +244,30 @@ if st.button("RUN SCOUT AGENTS"):
                     
                     map_df = pd.DataFrame(map_data)
                     
-                    # Tooltip tracking enables name parsing on node hover!
-                    st.map(map_df, size=40, color="color", tooltip="name")
+                    # RENDER USING PYDECK FOR ROBUST INTERACTIVE HOVER TOOLTIPS
+                    view_state = pdk.ViewState(
+                        latitude=target_lat,
+                        longitude=target_lon,
+                        zoom=13,
+                        pitch=0
+                    )
+                    
+                    layer = pdk.Layer(
+                        "ScatterplotLayer",
+                        map_df,
+                        get_position="[lon, lat]",
+                        get_color="[color_r, color_g, color_b]",
+                        get_radius=80,
+                        pickable=True
+                    )
+                    
+                    st.pydeck_chart(pdk.Deck(
+                        layers=[layer],
+                        initial_view_state=view_state,
+                        tooltip={"text": "{name}"},
+                        map_style="mapbox://styles/mapbox/dark-v11"
+                    ))
+                    
                     st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
                     
                     # --- INTERACTIVE VISUAL DIRECTORY INDEX ---
