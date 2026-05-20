@@ -263,7 +263,7 @@ if st.button("RUN SCOUT AGENTS"):
                             map_df,
                             get_position="[lon, lat]",
                             get_color="[color_r, color_g, color_b]",
-                            get_radius=70,
+                            get_radius=15,             # <-- FIXED: Reduced from 70 to 15 to shrink the circle icons significantly
                             pickable=True
                         )
                         st.pydeck_chart(pdk.Deck(
