@@ -105,7 +105,6 @@ with header_col2:
 
 st.markdown("---")
 
-# ONBOARDING CONTROL: Address structural intent clarity immediately
 st.info(
     "💡 **SYSTEM NOTE:** This utility does *not* find remote job vacancies. "
     "It maps real physical 'Third Places' (cafes, open libraries, lobbies) for professionals "
@@ -216,7 +215,7 @@ if st.button("RUN SCOUT AGENTS"):
                     map_data = []
                     directory_data = []
                     
-                    # 1. Base Target Point Marker (Cyan Beacon)
+                    # Always establish Center Pin (Cyan)
                     map_data.append({
                         "lat": target_lat,
                         "lon": target_lon,
@@ -224,7 +223,6 @@ if st.button("RUN SCOUT AGENTS"):
                         "color_r": 0, "color_g": 240, "color_b": 255
                     })
                     
-                    # 2. Add individual workspace locations
                     for idx, venue in enumerate(map_venues):
                         v_name = venue.get("name", f"Workspace {chr(65+idx)}")
                         v_address = venue.get("address", "Local Area Address Pool")
@@ -242,33 +240,32 @@ if st.button("RUN SCOUT AGENTS"):
                             "Street Address": v_address
                         })
                     
-                    map_df = pd.DataFrame(map_data)
-                    
-                    # RENDER USING PYDECK FOR ROBUST INTERACTIVE HOVER TOOLTIPS
-                    view_state = pdk.ViewState(
-                        latitude=target_lat,
-                        longitude=target_lon,
-                        zoom=13,
-                        pitch=0
-                    )
-                    
-                    layer = pdk.Layer(
-                        "ScatterplotLayer",
-                        map_df,
-                        get_position="[lon, lat]",
-                        get_color="[color_r, color_g, color_b]",
-                        get_radius=80,
-                        pickable=True
-                    )
-                    
-                    st.pydeck_chart(pdk.Deck(
-                        layers=[layer],
-                        initial_view_state=view_state,
-                        tooltip={"text": "{name}"},
-                        map_style="mapbox://styles/mapbox/dark-v11"
-                    ))
-                    
-                    st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
+                    # VALIDATION ACCORDANCE: Ensure dataframe contains items before rendering canvas view
+                    if len(map_data) > 0:
+                        map_df = pd.DataFrame(map_data)
+                        view_state = pdk.ViewState(
+                            latitude=target_lat,
+                            longitude=target_lon,
+                            zoom=13,
+                            pitch=0
+                        )
+                        layer = pdk.Layer(
+                            "ScatterplotLayer",
+                            map_df,
+                            get_position="[lon, lat]",
+                            get_color="[color_r, color_g, color_b]",
+                            get_radius=110, # Increased radius for better visual tracking
+                            pickable=True
+                        )
+                        st.pydeck_chart(pdk.Deck(
+                            layers=[layer],
+                            initial_view_state=view_state,
+                            tooltip={"text": "{name}"},
+                            map_style="mapbox://styles/mapbox/dark-v11"
+                        ))
+                        st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
+                    else:
+                        st.warning("⚠️ Spatial plotting data array empty. Check search preferences framework.")
                     
                     # --- INTERACTIVE VISUAL DIRECTORY INDEX ---
                     st.markdown("### 🗺️ LOCATION KEY DIRECTORY")
