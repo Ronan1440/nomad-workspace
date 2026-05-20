@@ -17,7 +17,7 @@ st.set_page_config(
 # Custom CSS targeting the 2008 Gaming Inspired Purple Theme
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;700&family=Chakra+Petch:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght=400;700&family=Chakra+Petch:wght=500;700&display=swap');
     
     .stApp {
         background-color: #0c0814; 
@@ -25,7 +25,7 @@ st.markdown("""
         font-family: 'Azeret Mono', monospace;
     }
 
-    [data-testid=\"stSidebar\"] {
+    [data-testid="stSidebar"] {
         background-color: #05030a;
         border-right: 2px solid #a855f7;
     }
@@ -103,6 +103,13 @@ with header_col2:
     """, unsafe_allow_html=True)
 
 st.markdown("---")
+
+# UPGRADE 1: Mission Card to address the onboarding confusion head-on
+st.info(
+    "💡 **SYSTEM NOTE:** This utility does *not* find remote job vacancies. "
+    "It maps real physical 'Third Places' (cafes, open libraries, lobbies) for professionals "
+    "who need physical infrastructure—like verified Wi-Fi, accessible plugs, and manageable soundscapes—to work out of."
+)
 
 # --- SIDEBAR INTERFACE ---
 with st.sidebar:
@@ -198,35 +205,51 @@ if st.button("RUN SCOUT AGENTS"):
                 
                 st.success(f"REPORT COMPILED FOR {city_input.upper()} SECURED BY SPATIAL LAT/LON LIMITS")
                 
-                # --- DISPLAY LAYER: MAP + PLAIN TEXT SUMMARIES ---
+                # --- DISPLAY LAYER: MAP + DIRECTORY + REPORT ---
                 col_left, col_right = st.columns([1, 1])
                 
                 with col_left:
                     st.subheader("📡 SPATIAL MAPPING CORE")
                     map_venues = final_state.get("map_coordinates", [])
                     
-                    # Constructing a dynamic map dataframe with color-coded anchors
+                    # Constructing visual frame arrays
                     map_data = []
+                    directory_data = []
                     
-                    # 1. Add your resolved core location as a distinctive Cyan/Teal beacon
+                    # 1. Base Target Point Marker
                     map_data.append({
                         "lat": target_lat,
                         "lon": target_lon,
-                        "color": "#00f0ff"  # Glowing Retro Cyan
+                        "color": "#00f0ff"  # Cyan
                     })
                     
-                    # 2. Add the agent compiled data point structures as Electric Purple markers
+                    # 2. Map discovered locations from our new dictionary fields
                     for venue in map_venues:
                         map_data.append({
                             "lat": venue["lat"],
                             "lon": venue["lon"],
                             "color": "#a855f7"  # Electric Purple
                         })
+                        directory_data.append({
+                            "Workspace Venue": venue.get("name", "Discovered Workspace"),
+                            "Street Address": venue.get("address", "Local Area Address Pool")
+                        })
                     
-                    # Render map using the integrated color configurations DataFrame
                     map_df = pd.DataFrame(map_data)
                     st.map(map_df, size=40, color="color")
-                    st.caption("🔵 Cyan Pin: Your Target Location Midpoint | 🟣 Purple Pins: Discovered Workspaces")
+                    st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces")
+                    
+                    # UPGRADE 2: Interactive Location Index Directory
+                    st.markdown("### 📋 LOCAL WORKSPACE INDEX")
+                    if directory_data:
+                        directory_df = pd.DataFrame(directory_data)
+                        st.dataframe(
+                            directory_df,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.caption("No address entries parsed for this index query.")
                 
                 with col_right:
                     st.subheader("📋 INTELLIGENCE DOSSIER SUMMARY")
