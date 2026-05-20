@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS targeting the Gaming Inspired Purple Theme
+# Custom CSS Purple Cafe Theme
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght=400;700&family=Chakra+Petch:wght=500;700&display=swap');
