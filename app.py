@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import pandas as pd
 import pydeck as pdk
+import time
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
 from graph import nomad_scout_graph
@@ -197,7 +198,8 @@ if st.button("RUN SCOUT AGENTS"):
                     }
                 }
                 
-                thread_key = f"{city_input.lower()}_{country_input.lower()}".replace(' ', '_')
+                # UNIQUE TIMESTEP THREAD LOCK: Drops corrupted memory state instantly
+                thread_key = f"{city_input.lower()}_{country_input.lower()}_{int(time.time())}".replace(' ', '_')
                 config = {"configurable": {"thread_id": f"scout_{thread_key}"}}
                 
                 final_state = nomad_scout_graph.invoke(inputs, config)
@@ -217,6 +219,7 @@ if st.button("RUN SCOUT AGENTS"):
                     
                     # 1. Establish Center Pin (Cyan)
                     map_data.append({
+                        "embed_id": "CENTER",
                         "lat": target_lat,
                         "lon": target_lon,
                         "name": "🎯 SEARCH CENTER MIDPOINT",
@@ -228,6 +231,7 @@ if st.button("RUN SCOUT AGENTS"):
                         v_address = venue.get("address", "Local Area Address Pool")
                         
                         map_data.append({
+                            "embed_id": f"VENUE_{chr(65+idx)}",
                             "lat": venue["lat"],
                             "lon": venue["lon"],
                             "name": f"📌 {v_name}",
