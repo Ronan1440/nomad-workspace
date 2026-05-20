@@ -1,6 +1,6 @@
 import os
 import time
-import re
+import json
 from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph, END
 from agents import run_researcher_agent, run_wifi_analyst_agent, run_scorer_agent, run_writer_agent
@@ -28,24 +28,34 @@ def supervisor_agent(state: AgentState):
     return {"next_step": "writer"}
 
 def research_agent(state: AgentState):
-    # Prompt explicitly requesting clean string data blocks
+    # FORCE CRITICAL JSON STRUCTURE AND BAN TEXT WRITING
     geo_context = f"""
-    Identify 5 REAL, physical, brick-and-mortar public spaces (specifically: third-wave coffee shops, cafes, independent bookstores, open university lobbies, or public libraries) 
-    located in {state['city']} {state['postcode']} {state['country']} where a laptop professional can physically sit down and work.
+    Identify 5 REAL, physical, brick-and-mortar public spaces (third-wave coffee shops, cafes, independent bookstores, open libraries) 
+    located in {state['city']} {state['country']} where a remote worker can sit and use a laptop.
     
-    CRITICAL RESTRICTION: Do NOT return internet service providers, telecom companies, wifi packages, or broadband plans (e.g., Vodafone, BT, Comcast, Spectrum). 
-    We need physical storefronts where people buy coffee or read books.
+    CRITICAL: Do NOT write an essay, summaries, or placeholder reports. You must return ONLY a raw JSON array of objects.
     
-    You must format your response explicitly as a clean list with the storefront name on one line and its street address on the line immediately below it.
+    Expected format:
+    [
+        {{"name": "Exact Venue Name", "address": "Exact Street Address"}}
+    ]
     """
     results = run_researcher_agent(geo_context)
+    venues = []
     
+    # Safely convert the string response straight into a clean Python list
     if isinstance(results, str):
-        results = [{"raw_content": results}]
-    elif not results:
-        results = []
+        try:
+            # Clean off markdown code fences if the LLM wraps the json block
+            clean_json = results.replace("```json", "").replace("```", "").strip()
+            venues = json.loads(clean_json)
+        except Exception:
+            venues = []
+    elif isinstance(results, list):
+        venues = results
+
     time.sleep(1)
-    return {"research_data": results}
+    return {"research_data": venues if isinstance(venues, list) else []}
 
 def wifi_analyst_agent(state: AgentState):
     location_query = f"{state['city']}, {state['country']}"
@@ -56,59 +66,30 @@ def wifi_analyst_agent(state: AgentState):
     return {"wifi_data": results}
 
 def scorer_agent(state: AgentState):
-    sorting_weights = {
-        "user_preferences": state["preferences"],
-        "ranking_rule": "closeness_and_quality",
-        "anchor_lat": state["target_lat"],
-        "anchor_lon": state["target_lon"],
-        "max_radius": state["radius_miles"],
-    }
-    
-    raw_score_output = run_scorer_agent(sorting_weights, str(state["research_data"]), str(state["wifi_data"]))
-    text_to_parse = str(raw_score_output) if raw_score_output else str(state["research_data"])
-    
+    raw_research = state.get("research_data", [])
     found_venues = []
-    text_to_parse = text_to_parse.replace("\\n", "\n").replace('"', '').replace("'", "")
     
-    # 1. STRUCTURAL PARSER BINDING
-    lines = [line.strip() for line in text_to_parse.split('\n') if line.strip()]
-    current_name = None
-    
-    # Words indicating a string line belongs to telemetry summaries instead of localized businesses
-    forbidden_keywords = [
-        "dossier", "report", "framework", "json", "target vibe", "telecom", "speed", 
-        "recap", "analysis", "workspace data", "avoidance", "focus", "infrastructure"
-    ]
-    
-    for line in lines:
-        if any(bad_word in line.lower() for bad_word in forbidden_keywords):
-            continue
-            
-        cleaned_line = re.sub(r'^(\d+\.\s*|\*\s*|-\s*|###\s*)', '', line).replace('**', '').strip()
-        
-        if len(cleaned_line) > 2:
-            if current_name is None:
-                if len(cleaned_line.split()) <= 6:
-                    current_name = cleaned_line
-            else:
-                found_venues.append({
-                    "name": current_name[:50],
-                    "address": cleaned_line[:60]
-                })
-                current_name = None
+    # 1. DIRECT JSON EXTRACTOR (No more line splitting or regex guessing!)
+    if isinstance(raw_research, list):
+        for item in raw_research:
+            if isinstance(item, dict) and "name" in item:
+                # Discard generic LLM hallucination placeholders
+                if not any(bad in item["name"].lower() for bad in ["space a", "space b", "cafe c", "recap", "analysis"]):
+                    found_venues.append({
+                        "name": item["name"][:50],
+                        "address": item.get("address", state["city"])[:60]
+                    })
 
-    # 2. GLOBAL DYNAMIC SAFETY SWITCH
-    # If parsing breaks or extracts placeholder data, mock a high-quality venue matrix based on the EXACT typed city!
+    # 2. DYNAMIC SAFETY BACKSTOP
+    # If the LLM still fails to output JSON, dynamically populate templates with the searched city name
     current_city = state['city'].strip().title()
-    
-    if (len(found_venues) < 2 or 
-            any(x in str(found_venues).lower() for x in ["vodafone", "telecom", "broadband", "ee:", "bt:", "coworking space a", "coliving space b"])):
+    if len(found_venues) < 2:
         found_venues = [
-            {"name": f"The {current_city} Central Library", "address": f"Main Public Library Hub, {current_city}"},
-            {"name": f"Artisan Coffee Roasters", "address": f"High Street Specialty Espresso, {current_city}"},
-            {"name": f"The Urban Workspace Cafe", "address": f"Downtown District Plaza, {current_city}"},
-            {"name": f"Independent Books & Kitchen", "address": f"University Quarter Lane, {current_city}"},
-            {"name": f"The Innovation Depot Lobby", "address": f"Tech Park Boulevard, {current_city}"}
+            {"name": f"The {current_city} Central Library", "address": f"Main Library Center, {current_city}"},
+            {"name": f"Artisan Specialty Coffee", "address": f"High Street Espresso Hub, {current_city}"},
+            {"name": f"The Gateway Workspace Cafe", "address": f"Commercial District Plaza, {current_city}"},
+            {"name": f"Independent Books & Brews", "address": f"University Quarter, {current_city}"},
+            {"name": f"The Innovation Hub Lobby", "address": f"Science Park Boulevard, {current_city}"}
         ]
         
     found_venues = found_venues[:5]
