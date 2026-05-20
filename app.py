@@ -107,8 +107,7 @@ with header_col2:
 st.markdown("---")
 
 st.info(
-    "💡 **SYSTEM NOTE:** This utility does *not* find remote job vacancies. "
-    "It maps real physical 'Third Places' (cafes, open libraries, lobbies) for professionals "
+    "💡This utility maps real physical 'Third Places' (cafes, open libraries, lobbies) for professionals"
     "who need physical infrastructure—like verified Wi-Fi, accessible plugs, and manageable soundscapes—to work out of."
 )
 
