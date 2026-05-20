@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS targeting the 2008 Gaming Inspired Purple Theme
+# Custom CSS targeting the Gaming Inspired Purple Theme
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght=400;700&family=Chakra+Petch:wght=500;700&display=swap');
@@ -104,7 +104,7 @@ with header_col2:
 
 st.markdown("---")
 
-# UPGRADE 1: Mission Card to address the onboarding confusion head-on
+# ONBOARDING CONTROL: Address structural intent clarity immediately
 st.info(
     "💡 **SYSTEM NOTE:** This utility does *not* find remote job vacancies. "
     "It maps real physical 'Third Places' (cafes, open libraries, lobbies) for professionals "
@@ -138,7 +138,7 @@ with st.sidebar:
     good_ac = st.checkbox("ACCESSIBLE POWER PLUGS")
     indoor_work = st.checkbox("PREFER INDOOR WORKSPACES")
     
-    # --- CREDIT SECURITY SYSTEM ---
+    # --- SECURITY ENFORCEMENT ---
     st.markdown("---")
     st.header("DEVELOPER ACCESS")
     access_key = st.text_input("ENTER SYSTEM PASSKEY", type="password", placeholder="••••••••")
@@ -154,7 +154,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-# --- EXECUTION LOGIC ---
+# --- EXECUTION ENGINE ---
 if st.button("RUN SCOUT AGENTS"):
     if access_key != "pchose9903":
         st.error("ACCESS DENIED: INVALID SYSTEM PASSKEY. UNABLE TO INITIATE AGENT METRICS.")
@@ -205,49 +205,59 @@ if st.button("RUN SCOUT AGENTS"):
                 
                 st.success(f"REPORT COMPILED FOR {city_input.upper()} SECURED BY SPATIAL LAT/LON LIMITS")
                 
-                # --- DISPLAY LAYER: MAP + DIRECTORY + REPORT ---
+                # --- DISPLAY LAYER: INTERACTIVE DASHBOARD ---
                 col_left, col_right = st.columns([1, 1])
                 
                 with col_left:
                     st.subheader("📡 SPATIAL MAPPING CORE")
                     map_venues = final_state.get("map_coordinates", [])
                     
-                    # Constructing visual frame arrays
                     map_data = []
                     directory_data = []
                     
-                    # 1. Base Target Point Marker
+                    # 1. Base Target Point Marker (Cyan Beacon)
                     map_data.append({
                         "lat": target_lat,
                         "lon": target_lon,
-                        "color": "#00f0ff"  # Cyan
+                        "name": "SEARCH CENTER MIDPOINT",
+                        "color": "#00f0ff"
                     })
                     
-                    # 2. Map discovered locations from our new dictionary fields
-                    for venue in map_venues:
+                    # 2. Add individual workspace locations
+                    for idx, venue in enumerate(map_venues):
+                        v_name = venue.get("name", f"Workspace {chr(65+idx)}")
+                        v_address = venue.get("address", "Local Area Address Pool")
+                        
                         map_data.append({
                             "lat": venue["lat"],
                             "lon": venue["lon"],
-                            "color": "#a855f7"  # Electric Purple
+                            "name": f"📌 {v_name}",
+                            "color": "#a855f7"
                         })
+                        
                         directory_data.append({
-                            "Workspace Venue": venue.get("name", "Discovered Workspace"),
-                            "Street Address": venue.get("address", "Local Area Address Pool")
+                            "ID": f"VENUE {chr(65+idx)}",
+                            "Workspace Venue": v_name,
+                            "Street Address": v_address
                         })
                     
                     map_df = pd.DataFrame(map_data)
-                    st.map(map_df, size=40, color="color")
-                    st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces")
                     
-                    # UPGRADE 2: Interactive Location Index Directory
-                    st.markdown("### 📋 LOCAL WORKSPACE INDEX")
+                    # Tooltip tracking enables name parsing on node hover!
+                    st.map(map_df, size=40, color="color", tooltip="name")
+                    st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
+                    
+                    # --- INTERACTIVE VISUAL DIRECTORY INDEX ---
+                    st.markdown("### 🗺️ LOCATION KEY DIRECTORY")
                     if directory_data:
-                        directory_df = pd.DataFrame(directory_data)
-                        st.dataframe(
-                            directory_df,
-                            use_container_width=True,
-                            hide_index=True
-                        )
+                        for item in directory_data:
+                            st.markdown(
+                                f"""<div style='padding: 10px; margin-bottom: 8px; background: rgba(168, 85, 247, 0.08); border-left: 4px solid #a855f7;'>
+                                    <strong style='color:#c084fc; font-family:"Chakra Petch", sans-serif;'>{item['ID']}: {item['Workspace Venue']}</strong><br>
+                                    <span style='font-size:12px; color:#d8b4fe;'>📍 {item['Street Address']}</span>
+                                </div>""", 
+                                unsafe_allow_html=True
+                            )
                     else:
                         st.caption("No address entries parsed for this index query.")
                 
