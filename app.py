@@ -257,11 +257,12 @@ if st.button("RUN SCOUT AGENTS"):
                             get_radius=110, # Increased radius for better visual tracking
                             pickable=True
                         )
-                        st.pydeck_chart(pdk.Deck(
+                       st.pydeck_chart(pdk.Deck(
                             layers=[layer],
                             initial_view_state=view_state,
                             tooltip={"text": "{name}"},
-                            map_style="mapbox://styles/mapbox/dark-v11"
+                            # FIX: Open-source tile style that works instantly without Mapbox tokens
+                            map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
                         ))
                         st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
                     else:
