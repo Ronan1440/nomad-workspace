@@ -223,6 +223,7 @@ if st.button("RUN SCOUT AGENTS"):
                         "lat": target_lat,
                         "lon": target_lon,
                         "name": "🎯 SEARCH CENTER MIDPOINT",
+                        "address": "Search Anchor Origin Coordinates",
                         "color_r": 0, "color_g": 240, "color_b": 255
                     })
                     
@@ -230,11 +231,16 @@ if st.button("RUN SCOUT AGENTS"):
                         v_name = venue.get("name", f"Workspace {chr(65+idx)}")
                         v_address = venue.get("address", "Local Area Address Pool")
                         
+                        # Clean out bracket syntax leaks or text splits leaking to map arrays
+                        v_name = v_name.split('{')[-1].replace('}', '').strip()
+                        v_address = v_address.split('{')[-1].replace('}', '').strip()
+                        
                         map_data.append({
                             "embed_id": f"VENUE_{chr(65+idx)}",
                             "lat": venue["lat"],
                             "lon": venue["lon"],
-                            "name": f"📌 {v_name}",
+                            "name": v_name,
+                            "address": v_address,
                             "color_r": 168, "color_g": 85, "color_b": 247
                         })
                         
@@ -244,13 +250,13 @@ if st.button("RUN SCOUT AGENTS"):
                             "Street Address": v_address
                         })
                     
-                    # 2. Render Pydeck map with proper indentation layout
+                    # 2. Render Pydeck map with clean, explicit HTML hover configurations
                     if len(map_data) > 0:
                         map_df = pd.DataFrame(map_data)
                         view_state = pdk.ViewState(
                             latitude=target_lat,
                             longitude=target_lon,
-                            zoom=13,
+                            zoom=14,
                             pitch=0
                         )
                         layer = pdk.Layer(
@@ -258,13 +264,22 @@ if st.button("RUN SCOUT AGENTS"):
                             map_df,
                             get_position="[lon, lat]",
                             get_color="[color_r, color_g, color_b]",
-                            get_radius=110,
+                            get_radius=70,
                             pickable=True
                         )
                         st.pydeck_chart(pdk.Deck(
                             layers=[layer],
                             initial_view_state=view_state,
-                            tooltip={"text": "{name}"},
+                            tooltip={
+                                "html": "<b>Location:</b> {name}<br/><b>Address:</b> {address}",
+                                "style": {
+                                    "backgroundColor": "#05030a", 
+                                    "color": "#d8b4fe", 
+                                    "border": "1px solid #a855f7", 
+                                    "fontFamily": "monospace",
+                                    "zIndex": "10000"
+                                }
+                            },
                             map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
                         ))
                         st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
@@ -276,7 +291,7 @@ if st.button("RUN SCOUT AGENTS"):
                     if directory_data:
                         for item in directory_data:
                             st.markdown(
-                                f"""<div style='padding: 10px; margin-bottom: 8px; background: rgba(168, 85, 247, 0.08); border-left: 4px solid #a855f7;'>
+                                f"""<div style='padding: 12px; margin-bottom: 8px; background: rgba(168, 85, 247, 0.08); border-left: 4px solid #a855f7;'>
                                     <strong style='color:#c084fc; font-family:"Chakra Petch", sans-serif;'>{item['ID']}: {item['Workspace Venue']}</strong><br>
                                     <span style='font-size:12px; color:#d8b4fe;'>📍 {item['Street Address']}</span>
                                 </div>""", 
