@@ -108,7 +108,7 @@ st.markdown("---")
 
 st.info(
     "💡This utility maps real physical 'Third Places' (cafes, open libraries, lobbies) for professionals"
-    "who need physical infrastructure—like verified Wi-Fi, accessible plugs, and manageable soundscapes—to work out of."
+    " who need physical infrastructure—like verified Wi-Fi, accessible plugs, and manageable soundscapes—to work out of."
 )
 
 # --- SIDEBAR INTERFACE ---
