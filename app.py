@@ -215,7 +215,7 @@ if st.button("RUN SCOUT AGENTS"):
                     map_data = []
                     directory_data = []
                     
-                    # Always establish Center Pin (Cyan)
+                    # 1. Establish Center Pin (Cyan)
                     map_data.append({
                         "lat": target_lat,
                         "lon": target_lon,
@@ -240,7 +240,7 @@ if st.button("RUN SCOUT AGENTS"):
                             "Street Address": v_address
                         })
                     
-                    # VALIDATION ACCORDANCE: Ensure dataframe contains items before rendering canvas view
+                    # 2. Render Pydeck map with proper indentation layout
                     if len(map_data) > 0:
                         map_df = pd.DataFrame(map_data)
                         view_state = pdk.ViewState(
@@ -254,14 +254,13 @@ if st.button("RUN SCOUT AGENTS"):
                             map_df,
                             get_position="[lon, lat]",
                             get_color="[color_r, color_g, color_b]",
-                            get_radius=110, # Increased radius for better visual tracking
+                            get_radius=110,
                             pickable=True
                         )
-                       st.pydeck_chart(pdk.Deck(
+                        st.pydeck_chart(pdk.Deck(
                             layers=[layer],
                             initial_view_state=view_state,
                             tooltip={"text": "{name}"},
-                            # FIX: Open-source tile style that works instantly without Mapbox tokens
                             map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
                         ))
                         st.caption("🔵 Cyan Pin: Search Center Point | 🟣 Purple Pins: Discovered Workspaces (Hover to see names)")
