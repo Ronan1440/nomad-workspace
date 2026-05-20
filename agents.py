@@ -8,7 +8,7 @@ from tools import scout_coworking_spaces, analyze_city_wifi
 load_dotenv()
 
 # Initialize our primary LLM 
-# Using gpt-4o-mini as it is fast, highly capable, and budget-friendly for a portfolio demo
+# gpt-4o-mini 
 try:
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
 except Exception as e:
@@ -41,14 +41,14 @@ def run_researcher_agent(city: str) -> list:
     chain = prompt | llm
     response = chain.invoke({"data": raw_web_data})
     
-    # For the MVP, we pass the LLM's structured breakdown back to the graph state
+    # Pass the LLM's structured breakdown back to the graph state
     return [{"raw_summary": response.content}]
 
 def run_wifi_analyst_agent(city: str, research_summary: str) -> dict:
     """Analyzes technical telemetry, speed reviews, and cellular infrastructure."""
     print("⚡ [LLM Agent] WiFi Analyst processing infrastructure...")
     
-    # 1. Run our custom WiFi tool
+    # 1. Run the custom WiFi tool
     raw_wifi_data = analyze_city_wifi.invoke({"city": city, "space_names": []})
     
     system_prompt = """You are a highly technical Network Engineer and remote work strategist.
