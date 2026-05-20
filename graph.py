@@ -4,6 +4,7 @@ from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph, END
 from agents import run_researcher_agent, run_wifi_analyst_agent, run_scorer_agent, run_writer_agent
 
+# 1. UPGRADED: Structured memory fields to hold real names, addresses, and pinpoint locations
 class AgentState(TypedDict):
     city: str
     country: str
@@ -13,38 +14,38 @@ class AgentState(TypedDict):
     radius_miles: int
     ranking_preference: str
     preferences: Dict[str, Any]
-    research_data: List[Dict[str, Any]]
+    research_data: List[Dict[str, Any]]  # Stores real parsed venue objects
     wifi_data: Dict[str, Any]
     ranked_results: List[Dict[str, Any]]
-    map_coordinates: List[Dict[str, float]]
+    map_coordinates: List[Dict[str, Any]] # Stores dictionaries with keys: lat, lon, name, address
     final_report: str
     next_step: str
 
 def supervisor_agent(state: AgentState):
-    # Safe checks: only route to a node if the key is completely missing/uninitialized (None)
-    if state.get("research_data") is None: 
-        return {"next_step": "researcher"}
-    if state.get("wifi_data") is None: 
-        return {"next_step": "wifi_analyst"}
-    if state.get("ranked_results") is None: 
-        return {"next_step": "scorer"}
+    if state.get("research_data") is None: return {"next_step": "researcher"}
+    if state.get("wifi_data") is None: return {"next_step": "wifi_analyst"}
+    if state.get("ranked_results") is None: return {"next_step": "scorer"}
     return {"next_step": "writer"}
 
 def research_agent(state: AgentState):
+    # Pass explicit instructions demanding exact names and storefront locations
     geo_context = f"""
-    Find public-access third places for remote work located in {state['city']} {state['postcode']} {state['country']} 
-    strictly within a {state['radius_miles']} mile radius of coordinates ({state['target_lat']}, {state['target_lon']}).
+    Find 5 real, specific public-access physical third places (named cafes, work-friendly hotel lobbies, or public libraries) 
+    located in {state['city']} {state['postcode']} {state['country']} near coordinates ({state['target_lat']}, {state['target_lon']}).
+    
+    CRITICAL: You must extract and return their EXACT names, verifiable street addresses, and geographic coordinates if available. 
+    Do not return vague descriptions or generic placeholder labels.
     """
     results = run_researcher_agent(geo_context)
-    # If the tool fails or hits a soft limit, set it to an empty list so it isn't None anymore
-    if results is None:
+    if not results or not isinstance(results, list):
         results = []
     time.sleep(1)
     return {"research_data": results}
 
 def wifi_analyst_agent(state: AgentState):
-    location_query = f"{state['city']}, {state['country']} region centered near ({state['target_lat']}, {state['target_lon']})"
-    results = run_wifi_analyst_agent(location_query, str(state["research_data"]))
+    location_query = f"{state['city']}, {state['country']} centered near postcode {state['postcode']}"
+    # Pass structural list data to preserve naming hierarchies instead of a raw flattened string
+    results = run_wifi_analyst_agent(location_query, state["research_data"])
     if results is None:
         results = {}
     time.sleep(1)
@@ -57,26 +58,39 @@ def scorer_agent(state: AgentState):
         "anchor_lat": state["target_lat"],
         "anchor_lon": state["target_lon"],
         "max_radius": state["radius_miles"],
-        "quality_metrics": ["seat_to_plug_ratio", "ambient_noise_suitability", "stay_protocol_lenency"]
     }
-    results = run_scorer_agent(sorting_weights, str(state["research_data"]), str(state["wifi_data"]))
-    if results is None:
-        results = []
     
-    base_lat = state["target_lat"]
-    base_lon = state["target_lon"]
-    extracted_pins = [
-        {"lat": base_lat + 0.0015, "lon": base_lon - 0.0025},
-        {"lat": base_lat - 0.0020, "lon": base_lon + 0.0031},
-        {"lat": base_lat + 0.0035, "lon": base_lon + 0.0012}
-    ]
+    # Run the scorer to order our real venues
+    results = run_scorer_agent(sorting_weights, state["research_data"], state["wifi_data"])
+    if not results or not isinstance(results, list):
+        results = state["research_data"] or []
+    
+    # 2. FIX: Extract real coordinate pins from your live research results
+    extracted_pins = []
+    for venue in results:
+        # Check if your background agent extracted real lat/lon properties from the API metadata
+        lat = venue.get("lat") or venue.get("latitude")
+        lon = venue.get("lon") or venue.get("longitude") or venue.get("lng")
+        
+        # Safe structural fallback: if the map API data is missing, place it safely near target center
+        if not lat or not lon:
+            lat = state["target_lat"]
+            lon = state["target_lon"]
+            
+        extracted_pins.append({
+            "lat": float(lat),
+            "lon": float(lon),
+            "name": venue.get("name", "Discovered Workspace"),
+            "address": venue.get("address", state["city"])
+        })
+        
     time.sleep(1)
     return {"ranked_results": results, "map_coordinates": extracted_pins}
 
 def report_writer_agent(state: AgentState):
-    location_title = f"{state['city'].upper()}, {state['country'].upper()} ({state['radius_miles']} Mile Radius Lock)"
-    prompt_override = "Structure the final dossier using clear sections for each venue."
-    report = run_writer_agent(location_title + " - " + prompt_override, str(state["ranked_results"]), str(state["wifi_data"]))
+    location_title = f"{state['city'].upper()}, {state['country'].upper()}"
+    prompt_override = "Dossier must showcase explicit venue storefront titles, real addresses, and exact proximity."
+    report = run_writer_agent(location_title + " - " + prompt_override, state["ranked_results"], state["wifi_data"])
     return {"final_report": report}
 
 # --- Compile Sequence ---
@@ -91,16 +105,7 @@ builder.set_entry_point("supervisor")
 def router(state: AgentState): 
     return state.get("next_step", "researcher")
 
-builder.add_conditional_edges(
-    "supervisor", 
-    router, 
-    {
-        "researcher": "researcher", 
-        "wifi_analyst": "wifi_analyst", 
-        "scorer": "scorer", 
-        "writer": "writer"
-    }
-)
+builder.add_conditional_edges("supervisor", router, {"researcher": "researcher", "wifi_analyst": "wifi_analyst", "scorer": "scorer", "writer": "writer"})
 builder.add_edge("researcher", "supervisor")
 builder.add_edge("wifi_analyst", "supervisor")
 builder.add_edge("scorer", "supervisor")
